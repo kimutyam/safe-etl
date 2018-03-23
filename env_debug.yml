@@ -1,0 +1,6 @@
+custom:
+  plazmadb:
+    database: debug_kimura
+  s3:
+    bucket_name: safe_etl
+    path_prefix: sample.json

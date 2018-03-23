@@ -1,0 +1,52 @@
+timezone: UTC
+
+_export:
+  target_database: ${custom.plazmadb.database}
+  target_table: sample
+  target_raw_table: sample_raw_${session_unixtime}
+  target_temp_table: sample_temp_${session_unixtime}
+
++before:
+  +empty_tables:
+    td_ddl>:
+    create_databases: ["${target_database}"]
+    empty_tables: ["${target_raw_table}", "${target_temp_table}"]
+    database: ${target_database}
+
+  +alter_raw_table:
+    td>: queries/alter_raw_table.sql
+    database: ${target_database}
+
++main:
+  +load_to_raw:
+    td_load>: embulk/raw_data.yml
+    database: ${target_database}
+    table: ${target_raw_table}
+
+  +load_to_temp:
+    td>: queries/insert_temp.sql
+    database: ${target_database}
+    store_last_results: true
+
+  # delete_targetする際にテーブル定義が必要なので明示的にCREATE TABLEしている
+  +create_target:
+    td>: queries/create_target.sql
+    database: ${target_database}
+
+  +delete_target:
+    if>: ${td.last_results.rows > 0}
+    _do:
+      td>: queries/delete_target.sql
+      database: ${target_database}
+
+  +insert_target:
+    if>: ${td.last_results.rows > 0}
+    _do:
+      td>: queries/insert_target.sql
+      database: ${target_database}
+
++after:
+  +drop_raw_and_temp:
+    td_ddl>:
+    database: ${target_database}
+    drop_tables: ["${target_raw_table}", "${target_temp_table}"]
